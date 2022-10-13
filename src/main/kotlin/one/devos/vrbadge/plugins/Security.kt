@@ -1,0 +1,108 @@
+package one.devos.vrbadge.plugins
+
+import io.ktor.server.auth.*
+import io.ktor.util.*
+import io.ktor.client.*
+import io.ktor.client.call.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.request.*
+import io.ktor.server.locations.*
+import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.sessions.*
+import io.ktor.server.application.*
+import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.response.*
+import io.ktor.server.request.*
+import io.ktor.server.routing.*
+import io.ktor.util.reflect.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import one.devos.vrbadge.VRStatus
+import one.devos.vrbadge.col
+import one.devos.vrbadge.httpClient
+import org.litote.kmongo.eq
+
+fun Application.configureSecurity() {
+    install(Sessions) {
+        cookie<UserSession>("user_session")
+    }
+
+    authentication {
+        oauth("auth-oauth-discord") {
+            urlProvider = { "" }
+            providerLookup = {
+                OAuthServerSettings.OAuth2ServerSettings(
+                    name = "discord",
+                    authorizeUrl =  "https://discord.com/oauth2/authorize",
+                    accessTokenUrl = "https://discord.com/api/oauth2/token",
+                    requestMethod = HttpMethod.Post,
+                    clientId = System.getenv("DISCORD_CLIENT_ID"),
+                    clientSecret = System.getenv("DISCORD_CLIENT_SECRET"),
+                    defaultScopes = listOf("identify", "email")
+                )
+            }
+            client = httpClient
+        }
+    }
+
+    routing {
+        authenticate("auth-oauth-discord") {
+            get("login") {
+                call.respondRedirect("/callback")
+            }
+
+            get("/callback") {
+                val principal: OAuthAccessTokenResponse.OAuth2? = call.authentication.principal()
+
+                val discord: DiscordUser = httpClient.get("https://discord.com/api/v9/users/@me") {
+                    bearerAuth(principal?.accessToken.toString())
+                }.body()
+
+                call.sessions.set(UserSession(
+                    accessToken = principal?.accessToken.toString(),
+                    id = discord.id,
+                    username = discord.username,
+                    discriminator = discord.discriminator,
+                    email = discord.email
+                ))
+
+                /*
+                col.findOne(VRStatus::id eq discord.id) ?: col.insertOne(VRStatus(
+                    id = discord.id,
+                    isInVR = false,
+                    isInVRGame = false,
+                    startedVRAt = 0,
+                    customMessage = ""
+                ))
+                */
+
+                call.respondRedirect("/me")
+            }
+
+            get("/me") {
+                val session = call.sessions.get<UserSession>()
+
+                //val status = col.findOne(VRStatus::id eq session?.id)
+
+                call.respondText("Hello ${session?.username}#${session?.discriminator}")//\nIn VR? ${status?.isInVR ?: "?"}")
+            }
+        }
+    }
+}
+
+class UserSession(
+    val accessToken: String,
+    val id: String,
+    val username: String,
+    val discriminator: String,
+    val email: String,
+)
+
+@Serializable
+data class DiscordUser(
+    val id: String,
+    val username: String,
+    val discriminator: String,
+    val email: String,
+)
