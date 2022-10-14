@@ -37,6 +37,7 @@ val col = database.getCollection<VRStatus>()
 
 val host: String = System.getenv("HOST") ?: "0.0.0.0"
 val port: Int = System.getenv("PORT")?.toInt() ?: 8080
+val callback_url: String = System.getenv("CALLBACK_URL") ?: ""
 
 fun main() {
     embeddedServer(CIOServer, port, host) {

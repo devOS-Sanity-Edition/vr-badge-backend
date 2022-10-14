@@ -19,7 +19,7 @@ fun Application.configureSecurity() {
 
     authentication {
         oauth("auth-oauth-discord") {
-            urlProvider = { System.getenv("CALLBACK_URL") }
+            urlProvider = { callback_url }
             providerLookup = {
                 OAuthServerSettings.OAuth2ServerSettings(
                     name = "discord",
