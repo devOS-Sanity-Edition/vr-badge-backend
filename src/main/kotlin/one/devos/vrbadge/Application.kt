@@ -45,5 +45,6 @@ fun main() {
         configureSerialization()
         configureSockets()
         configureRouting()
+        crab()
     }.start(wait = true)
 }
