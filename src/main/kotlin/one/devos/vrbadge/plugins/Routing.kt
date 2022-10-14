@@ -12,8 +12,7 @@ import io.ktor.server.request.*
 import io.ktor.server.sessions.*
 
 fun Application.configureRouting() {
-    install(Locations) {
-    }
+    install(Locations) { }
 
     routing {
         get("/") {
