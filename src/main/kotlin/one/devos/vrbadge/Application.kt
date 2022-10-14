@@ -27,7 +27,7 @@ data class VRStatus(
     val isInVR: Boolean,
     val isInVRGame: Boolean,
     val startedVRAt: Long,
-    val customMessage: String,
+    val customMessage: String
 )
 
 
