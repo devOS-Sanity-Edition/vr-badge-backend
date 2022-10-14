@@ -3,17 +3,14 @@ package one.devos.vrbadge
 import com.mongodb.ConnectionString
 import io.ktor.client.*
 import io.ktor.client.engine.cio.CIO as CIOClient
-import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.cio.CIO as CIOServer
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.serialization.kotlinx.json.*
-import kotlinx.coroutines.*
 import kotlinx.serialization.*
 import kotlinx.serialization.json.*import one.devos.vrbadge.plugins.*
 import org.litote.kmongo.coroutine.coroutine
 import org.litote.kmongo.reactivestreams.KMongo
-import java.time.LocalTime
 
 val httpClient = HttpClient(CIOClient) {
     install(ContentNegotiation) {
@@ -34,12 +31,15 @@ data class VRStatus(
 )
 
 
-val client = KMongo.createClient(ConnectionString("mongodb://storm:pancake@localhost:27017")).coroutine
-val database = client.getDatabase("vrbadge")
+val client = KMongo.createClient(ConnectionString(System.getenv("MONGO_URI"))).coroutine
+val database = client.getDatabase(System.getenv("MONGO_DATABASE"))
 val col = database.getCollection<VRStatus>()
 
+val host: String = System.getenv("HOST") ?: "0.0.0.0"
+val port: Int = System.getenv("PORT")?.toInt() ?: 8080
+
 fun main() {
-    embeddedServer(CIOServer, port = 8080, host = "0.0.0.0") {
+    embeddedServer(CIOServer, port, host) {
         configureSecurity()
         configureMonitoring()
         configureSerialization()

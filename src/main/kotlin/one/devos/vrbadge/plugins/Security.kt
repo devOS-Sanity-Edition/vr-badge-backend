@@ -9,7 +9,8 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
 import kotlinx.serialization.Serializable
-import one.devos.vrbadge.httpClient
+import one.devos.vrbadge.*
+import org.litote.kmongo.eq
 
 fun Application.configureSecurity() {
     install(Sessions) {
@@ -18,7 +19,7 @@ fun Application.configureSecurity() {
 
     authentication {
         oauth("auth-oauth-discord") {
-            urlProvider = { "" }
+            urlProvider = { System.getenv("CALLBACK_URL") }
             providerLookup = {
                 OAuthServerSettings.OAuth2ServerSettings(
                     name = "discord",
@@ -27,9 +28,10 @@ fun Application.configureSecurity() {
                     requestMethod = HttpMethod.Post,
                     clientId = System.getenv("DISCORD_CLIENT_ID"),
                     clientSecret = System.getenv("DISCORD_CLIENT_SECRET"),
-                    defaultScopes = listOf("identify", "email")
+                    defaultScopes = listOf("identify")
                 )
             }
+
             client = httpClient
         }
     }
@@ -50,12 +52,9 @@ fun Application.configureSecurity() {
                 call.sessions.set(UserSession(
                     accessToken = principal?.accessToken.toString(),
                     id = discord.id,
-                    username = discord.username,
-                    discriminator = discord.discriminator,
-                    email = discord.email
+                    username = discord.username
                 ))
 
-                /*
                 col.findOne(VRStatus::id eq discord.id) ?: col.insertOne(VRStatus(
                     id = discord.id,
                     isInVR = false,
@@ -63,18 +62,17 @@ fun Application.configureSecurity() {
                     startedVRAt = 0,
                     customMessage = ""
                 ))
-                */
 
                 call.respondRedirect("/me")
             }
+        }
 
-            get("/me") {
-                val session = call.sessions.get<UserSession>()
+        get("/me") {
+            val userSession = call.sessions.get<UserSession>() ?: return@get call.respondRedirect("/login")
 
-                //val status = col.findOne(VRStatus::id eq session?.id)
+            val status = col.findOne(VRStatus::id eq userSession.id) ?: return@get call.respondRedirect("/login")
 
-                call.respondText("Hello ${session?.username}#${session?.discriminator}")//\nIn VR? ${status?.isInVR ?: "?"}")
-            }
+            call.respondText("Hello ${userSession.username}\nIn VR? ${status.isInVR}")
         }
     }
 }
@@ -83,14 +81,10 @@ class UserSession(
     val accessToken: String,
     val id: String,
     val username: String,
-    val discriminator: String,
-    val email: String,
 )
 
 @Serializable
 data class DiscordUser(
     val id: String,
     val username: String,
-    val discriminator: String,
-    val email: String,
 )
